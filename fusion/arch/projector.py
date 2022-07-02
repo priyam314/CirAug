@@ -20,10 +20,7 @@ def get_projector(hlayerList, dropoutList, projector, i_f)->nn.Sequential:
     return projector
     
 class TrainProjector(nn.Module):
-    def __init__(self, 
-                 layerList: Hlayer
-                ):
-        
+    def __init__(self, layerList: Hlayer):
         super(TrainProjector, self).__init__()
         self.hlayerList = layerList.train
         self.dropoutList = layerList.dropout
@@ -37,10 +34,7 @@ class TrainProjector(nn.Module):
         
 class TestProjector(nn.Module):
     
-    def __init__(self, 
-                 layerList: Hlayer
-                ):
-        
+    def __init__(self, layerList: Hlayer):
         super(TestProjector, self).__init__()
         self.hlayerList = layerList.test
         self.dropoutList = layerList.dropout

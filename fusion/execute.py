@@ -139,6 +139,7 @@ class FineTune(Executioner):
         self.data_percent = data.val_percent
     
     def execute(self, epoch):
+        self.epoch = epoch
         self.model = self.freeze(self.model)
         self.model.train()
         self.model.cuda()

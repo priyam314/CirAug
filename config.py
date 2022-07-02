@@ -1,14 +1,34 @@
 from dataclasses import dataclass, field
 import torch
 from typing import List
+from abc import ABC, abstractmethod
+# import logging
+
+# logging.basicConfig(
+#     format = "{asctime} {levelname:<8} {message}",
+#     style = "{",
+#     filename = "ProLogs.log",
+#     filemode = "w"
+# )
 
 class ModelName:
+    """Creates the model name 
+    this class uses somes attributes in order to create the model name
+    
+    .........
+    
+    Methods:
+    -------
+    model_name: str
+        joins the encoder_name, dataname, update, description, type, index 
+        to create a unique key for protrack to track
+    """
     def __init__(self):
         pass
     def __call__(self, encoder_name, dataname, update, desc, typ,ind):
         return self.model_name(encoder_name, dataname, update, desc, typ,ind)
     
-    def model_name(self, encoder_name, dataname, update, desc, typ,ind):
+    def model_name(self, encoder_name, dataname, update, desc, typ,ind)->str:
         """
         >>> <encoder>_<dataname>_<update>_<type>_<desc>_<index>
         """
@@ -84,8 +104,9 @@ config = {
     }
 }
 
-class Config:
+class Config(ABC):
     
+    @abstractmethod
     def __init__(self):
         self._config = config
         
