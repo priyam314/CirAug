@@ -1,30 +1,35 @@
+import torch
+from augs import Augs
 from torch.utils.data import DataLoader
 from pprint import pprint
 from protrack import ProTrack
 from config import ConfigSeq
+from pipeline import PipeLine
 from fusion.execute import Train, FineTune, Test
-
-import torch
-import fusion as fuse
-from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset
+from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101
+from fusion.utils.util import loader, ifExistLoad, Print, trainOf, fineTuneOf
 from fusion.arch.encoder import Encoder, MobileNet_V2, EfficientNet_B0
 from fusion.arch.projector import TrainProjector, TestProjector
-from fusion.utils.util import loader, ifExistLoad, Print, trainOf, fineTuneOf
-from fusion.learning.optimizer import Optim
+from fusion.arch.model_builder import TrainModel, Fine_TuneModel, TestModel
+from fusion.learning.optimizer import Optim, Adam, AdamW, AdaBelief, SGD
 from fusion.learning.criterion import Criterion, BCEwithLogistLoss, CrossEntropyLoss, KLDiv, NTXent, BarlowTwins
 from fusion.learning.scheduler import Scheduler
-from pipeline import PipeLine
 
+#######== Configuration ==########
 torch.backends.cudnn.benchmark = True
 cfg = ConfigSeq()
-
-## ProAug
-from augs import Augs
+pipe = PipeLine()
 
 ######== Setting up Commands ==######
+dataset = Dataset()
+dataset.register("svhn", SVHN)
+dataset.register("stl10", STL10)
+dataset.register("food101", FOOD101)
+
 encoder = Encoder()
 encoder.register("mobilenet-v2", MobileNet_V2)
 encoder.register("efficientnet-b0", EfficientNet_B0)
+
 criterion = Criterion(cfg.criteria)
 criterion.register("bce", BCEwithLogistLoss)
 criterion.register("cel", CrossEntropyLoss)
@@ -32,36 +37,39 @@ criterion.register("kldiv", KLDiv)
 criterion.register("ntxent", NTXent)
 criterion.register("barlow", BarlowTwins)
 
-######== Dataset Setup Start ==######
+optimizer = Optim()
+optimizer.register("adam", Adam)
+optimizer.register("adamw", AdamW)
+optimizer.register("sgd", SGD)
+optimizer.register("adabelief", AdaBelief)
 
+######== Dataset Setup Start ==######
 Print("###### Data downloading and verification Init ######")
 
-train_dataloader = TrainLoader(Dataset(cfg.data.name)('train'), cfg.batch).execute()
-val_dataloader = ValLoader(Dataset(cfg.data.name)('train'), cfg.batch).execute()
-test_dataloader = TestLoader(Dataset(cfg.data.name)('test'), cfg.batch).execute()
+train_dataloader = TrainLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
+val_dataloader = ValLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
+test_dataloader = TestLoader(dataset.execute(cfg.data, 'test'), cfg.batch).execute()
 
-# fuse.utils.data.data_summary(train_dataloader, val_dataloader, test_dataloader)
+pipe.addLoaders(train_dataloader, val_dataloader, test_dataloader)
 
 ######== Dataset Setup End ==######
 
 cfg.set('data', 'dataset_size', len(train_dataloader.dataset))
 
 ######== ProAug Init Start==######
-
 Print("###### ProAug Augs Init ######")
 
-pprint(
-    Augs.init(dataset_size=cfg.data.dataset_size,
-              total_epochs=cfg.epoch.total,
-              batch_size=cfg.batch.train_size,
-              lamda=cfg.proaug.lamda))
+Augs.init(dataset_size = cfg.data.dataset_size,
+          total_epochs = cfg.epoch.total,
+          batch_size = cfg.batch.train_size,
+          lamda = cfg.proaug.lamda)
 
 ######== ProAug Init End ==######
 
 ######== ProTrack Start ==######
-
 Print("###### ProTrack Tracking Init ######")
 
+# created the object of ProTrack
 pt = ProTrack()
 # init the ProTrack and load the ProLogs
 pt.init().load()
@@ -79,29 +87,37 @@ pt.save()
 ######== ProTrack End ==######
 
 ######== Model Start ==######
-
 Print("###### Model Building and Loading ######")
 
-trainModel = ifExistLoad(encoder.execute(cfg.model, TrainProjector(cfg.hlayer)), pt, cfg.model, "train")
-valModel = ifExistLoad(encoder.execute(cfg.model, TrainProjector(cfg.hlayer)), pt, trainOf(cfg.model), "fine-tune")
-testModel = ifExistLoad(encoder.execute(cfg.model, TestProjector(cfg.hlayer)), pt, fineTuneOf(cfg.model), "test")
+modelBuilder = ModelBuilder(encoder = encoder, model = cfg.model, pt = pt)
+
+modelBuilder.register("trainModel", TrainModel)
+modelBuilder.register("fine-tuneModel", Fine_TuneModel)
+modelBuilder.register("testLoader", TestLoader)
+
+trainModel = modelBuilder.execute(TrainProjector(cfg.hlayer), "train")
+fine_tuneModel = modelBuilder.execute(TrainProjector(cfg.hlayer), "fine-tune")
+testModel = modelBuilder.execute(TestProjector(cfg.hlayer), "test")
 
 if cfg.utils.cuda:
     trainModel = trainModel.cuda()
     valModel = valModel.cuda()
     testModel = testModel.cuda()
 
+pipe.addModels(trainModel, fine_tuneModel, testModel)
+
 ######== Model End ==######
-
+pipe.addCriterion(criterion)
+pipe.addOptimizer(optimizer)
+pipe.addExecutions(Train, FineTune, Test)
 ######== Executioner Start ==######
-
 Print("###### Execution Initiated ######")
 
 widgets = {
     'Augs': Augs,
     'protrack': pt,
-    'optim': Optim(cfg.optimizer.name),
-    'criterion': Criterion(cfg),
+    'optim': optimizer,
+    'criterion': criterion,
     'scheduler': Scheduler('yo')
 }
 pipe = PipeLine(cfg.exec.typ)

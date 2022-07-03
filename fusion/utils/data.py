@@ -1,6 +1,6 @@
 from torchvision import datasets, transforms
 import torch
-from config import Batch
+from config import Batch, Data
 from abc import ABC, abstractmethod
 
 class Dataset:
@@ -16,8 +16,18 @@ class Dataset:
     params: dict
         essential parameters for datasets
     """
-    def __init__(self, name: str = "stl10"):
-        self.name = name
+    def __init__(self):
+        self.commands = {}
+    
+    def register(self, command_name: str, command: Command):
+        self.commands[command_name] = command
+    
+    def execute(self, command_name: Data, split: str):
+        return self.commands[command_name.name].execute(split)
+
+class Command(ABC):
+    
+    def __init__(self):
         self.params = {
             'root': '../data',
             'download': True,
@@ -27,9 +37,13 @@ class Dataset:
                                                       (0.229, 0.224, 0.225))
                              ])
             }
+        
+    @abstractmethod
+    def execute(self):
+        pass
 
-    def dataset_SVHN(self, split: str = 'extra'):
-        """transforms and downloads the SVHN dataset
+class SVHN(Command):
+    """transforms and downloads the SVHN dataset
         
         .........
         
@@ -41,11 +55,11 @@ class Dataset:
         Returns:
         -------
         torchvision.dataset
-        """
-        return datasets.SVHN(split = split, **self.params)
+    """
+    def execute(self, split: str): return datasets.SVHN(split = split, **self.params)
 
-    def dataset_STL10(self, split: str = 'unlabeled'):
-        """transforms and downloads the STL10 dataset
+class STL10(Command):
+    """transforms and downloads the STL10 dataset
         
         .........
         
@@ -57,11 +71,11 @@ class Dataset:
         Returns:
         -------
         torchvision.dataset
-        """
-        return datasets.STL10(split = split, **self.params)
+    """
+    def execute(self, split: str): return datasets.STL10(split = split, **self.params)
 
-    def dataset_FOOD101(self, split: str = 'train'):
-        """transforms and downloads the Food101 dataset
+class FOOD101(Command):
+    """transforms and downloads the Food101 dataset
         
         .........
         
@@ -73,13 +87,8 @@ class Dataset:
         Returns:
         -------
         torchvision.dataset
-        """
-        return datasets.Food101(split = split, **self.params)
-
-    def __call__(self, split: str = "train"):
-        if self.name == "stl10": return self.dataset_STL10(split=split)
-        elif self.name == "svhn": return self.dataset_SVHN(split=split)
-        elif self.name == "food101": return self.dataset_FOOD101(split=split)
+    """
+    def execute(self, split: str): return datasets.FOOD101(split = split, **self.params)
 
 class DataLoader(torch.utils.data.DataLoader):
     """DataLoader base class
@@ -98,16 +107,25 @@ class DataLoader(torch.utils.data.DataLoader):
     
     nw: int
         assigns the number of workers
+    
+    _name: str
+        name of the dataloader to uniquely define it
         
     Methods:
     -------
     execute: torch.utils.data.DataLoader
         returns the dataloader
+        
+    Property:
+    -------
+    name: str
+        returns the name of the dataloader
     """
     def __init__(self):
         self.dataset = 0
         self.batch_size = 0
         self.nw = 0
+        self._name = "dataloader"
 
     def execute(self):
         print(f"{self.__class__.__name__}: setting up training set\n")
@@ -116,6 +134,8 @@ class DataLoader(torch.utils.data.DataLoader):
                                            shuffle=True,
                                            num_workers=self.nw,
                                            pin_memory=True)
+    @property
+    def name(self): return self._name
 
 
 class TrainLoader(DataLoader):
@@ -127,6 +147,7 @@ class TrainLoader(DataLoader):
         self.dataset: Dataset = dataset
         self.batch_size: Batch = batch.train_size
         self.nw: int = num_workers
+        self._name: str = "trainloader"
 
 
 class ValLoader(DataLoader):
@@ -138,7 +159,7 @@ class ValLoader(DataLoader):
         self.dataset: Dataset = dataset
         self.batch_size: Batch = batch.val_size
         self.nw: int = num_workers
-
+        self._name: str = "valloader"
 
 class TestLoader(DataLoader):
 
@@ -149,6 +170,7 @@ class TestLoader(DataLoader):
         self.dataset: Dataset = dataset
         self.batch_size: Batch = batch.test_size
         self.nw: int = num_workers
+        self._name: str = "testloader"
 
 def data_summary(*loaders: torch.utils.data.DataLoader):
     for loader in loaders:
