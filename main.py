@@ -5,7 +5,7 @@ from pprint import pprint
 from protrack import ProTrack
 from config import ConfigSeq
 from pipeline import PipeLine
-from fusion.execute import Train, FineTune, Test
+from fusion.execute import TrainExecution, FineTuneExecution, TestExecution
 from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101
 from fusion.utils.util import loader, ifExistLoad, Print, trainOf, fineTuneOf
 from fusion.arch.encoder import Encoder, MobileNet_V2, EfficientNet_B0
@@ -49,8 +49,6 @@ Print("###### Data downloading and verification Init ######")
 train_dataloader = TrainLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
 val_dataloader = ValLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
 test_dataloader = TestLoader(dataset.execute(cfg.data, 'test'), cfg.batch).execute()
-
-pipe.addLoaders(train_dataloader, val_dataloader, test_dataloader)
 
 ######== Dataset Setup End ==######
 
@@ -104,23 +102,30 @@ if cfg.utils.cuda:
     valModel = valModel.cuda()
     testModel = testModel.cuda()
 
-pipe.addModels(trainModel, fine_tuneModel, testModel)
-
 ######== Model End ==######
+pipe.addLoaders(train_dataloader, val_dataloader, test_dataloader)
+pipe.addModels(trainModel, fine_tuneModel, testModel)
 pipe.addCriterion(criterion)
 pipe.addOptimizer(optimizer)
-pipe.addExecutions(Train, FineTune, Test)
+pipe.addExecutions(TrainExecution, FineTuneExecution, TestExecution)
+pipe.addAugs(Augs) 
+pipe.addProtrack(pt)
 ######== Executioner Start ==######
 Print("###### Execution Initiated ######")
 
-widgets = {
-    'Augs': Augs,
-    'protrack': pt,
-    'optim': optimizer,
-    'criterion': criterion,
-    'scheduler': Scheduler('yo')
-}
-pipe = PipeLine(cfg.exec.typ)
+# widgets = {
+#     'Augs': Augs,
+#     'protrack': pt,
+#     'optim': optimizer,
+#     'criterion': criterion,
+#     'scheduler': Scheduler('yo')
+# }
+pipe = PipeLine(cfg.exec)
+pipe.start_execution()
+
+
+
+
 pipe.add(
     Train(model=trainModel,
           dataloader=train_dataloader,
