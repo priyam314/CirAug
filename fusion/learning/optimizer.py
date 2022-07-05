@@ -3,22 +3,22 @@ import torch.optim as optim
 # !pip install adabelief-pytorch==0.2.0
 from adabelief_pytorch import AdaBelief as Adb
 from config import Optimizer
-fromabc import ABC, abstractmethod
+from abc import ABC, abstractmethod
+
+class Command(ABC):
+    @abstractmethod
+    def execute(self):
+        pass
 
 class Optim:
     def __init__(self):
         self.commands = {}
     
     def register(self, command_name: str, command: Command):
-        self.commands[command_name] = command
+        self.commands[command_name] = command()
     
     def execute(self, command_name: str, model: nn.Module, config: Optimizer):
         return self.commands[command_mame].execute(model, config)
-
-class Command(ABC):
-    @abstractmethod
-    def execute(self):
-        pass
 
 class Adam(Command):
     def execute(self, model: nn.Module, config: Optimizer):

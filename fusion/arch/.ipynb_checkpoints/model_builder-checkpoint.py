@@ -1,27 +1,13 @@
-from config import Model
+from config import Model, ConfigSeq, Hlayer
 from fusion.arch.encoder import Encoder
 from torch import nn
 from protrack import ProTrack
 from abc import ABC, abstractmethod
 from fusion.utils.util import ifExistLoad
+from fusion.utils.util import trainOf, fineTuneOf
 
-class ModelBuilder:
-    def __init__(self, 
-                encoder: Encoder,
-                model: Model, 
-                pt: ProTrack,
-                )-> None:
-        self.encoder = encoder
-        self.model = model
-        self.pt = pt
-        self.commands = {}
-    
-    def register(self, command_name: str, command: Command):
-        self.commands[command_name] = command(self.encoder, self.model, self.pt)
-    
-    def execute(self, command_name: str, projector: nn.Module, word: str):
-        return self.commands[command_name].execute(projector, word)
-    
+cfg = ConfigSeq()
+
 class Command(ABC):
     def __init__(self, encoder, model, pt, hlayer):
         self.encoder = encoder
@@ -38,21 +24,42 @@ class Command(ABC):
     @property
     def name(self): return self._name
 
+class ModelBuilder:
+    def __init__(self, 
+                encoder: Encoder,
+                model: Model, 
+                pt: ProTrack,
+				hlayer: Hlayer
+                )-> None:
+        self.encoder = encoder
+        self.model = model
+        self.pt = pt
+        self.commands = {}
+    
+    def register(self, command_name: str, command: Command):
+        self.commands[command_name] = command(encoder = self.encoder, 
+											  model = self.model, 
+											  pt = self.pt, 
+											  hlayer = cfg.hlayer)
+    
+    def execute(self, command_name: str, projector: nn.Module, word: str):
+        return self.commands[command_name].execute(projector, word)
+
 class TrainModel(Command):
     def execute(self, projector, word):
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
-        self.name = word+"Model"
+        self._name = word+"Model"
         return self
 
 class Fine_TuneModel(Command):
     def execute(self, projector, word):
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
-        self.name = word+"Model"
+        self._name = word+"Model"
         return self
 
 class TestModel(Command):
     def execute(self, projector, word):
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
-        self.name = word+"Model"
+        self._name = word+"Model"
         return self
     

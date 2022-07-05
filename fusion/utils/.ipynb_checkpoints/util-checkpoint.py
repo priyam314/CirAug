@@ -1,8 +1,8 @@
 import torch
 from termcolor import colored
-from config import Config
+from config import Config, Model
 
-def get_batch_size(cfg: Config):
+def get_batch_size(config: Config):
     if config.exec.typ == "train": return config.batch.train_size
     elif config.exec.typ == "fine-tune": return config.batch.val_size
     elif config.exec.typ == "test": return config.batch.test_size
@@ -13,7 +13,7 @@ def changeName(withname: str, instring: str, searchof: str)-> str:
             return instring.replace(withname, string)
     raise Exception("string not found in searchof")
 
-def trainOf(name: str)->str:
+def trainOf(model: Model)->str:
     """replace subString
     Replaces the 'fine-tune' in name with 'train' and add 0 at end
     
@@ -29,9 +29,9 @@ def trainOf(name: str)->str:
     str
         string after the certain subString has been replaced
     """
-    return name.replace("fine-tune", "train")[:-1]+"0"
+    return model.name.replace("fine-tune", "train")[:-1]+"0"
 
-def fineTuneOf(name: str)->str:
+def fineTuneOf(model: Model)->str:
     """replace subString
     Replaces the 'test' in name with 'fine-tune'
     
@@ -47,7 +47,7 @@ def fineTuneOf(name: str)->str:
     str
         string after the certain subString has been replaced
     """
-    return name.replace("test","fine-tune")
+    return model.name.replace("test","fine-tune")
 
 def loader(model, pt, name, typ):
     """Loads the weight of model 

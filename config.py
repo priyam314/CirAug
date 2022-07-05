@@ -91,11 +91,11 @@ config = {
         'dropout': [0.9, 0.5]
     },
     'exec':{
-        'typ': 'fine-tune'
+        'typ': 'train'
     },
     'utils':{
         'cuda': torch.cuda.is_available(),
-        'index': 1,
+        'index': 0,
         'desc': 'new',
         'K': 3
     },

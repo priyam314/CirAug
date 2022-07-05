@@ -6,6 +6,7 @@ cfg = ConfigSeq()
 
 def get_projector(hlayerList, dropoutList, projector, i_f)->nn.Sequential:
     hlayerList = [i_f] + hlayerList
+    print (hlayerList)
     if len(hlayerList) == 2:
         projector.add_module("Linear_0", nn.Linear(hlayerList[0], hlayerList[1]))
     elif len(hlayerList) > 2:

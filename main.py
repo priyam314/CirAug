@@ -4,13 +4,13 @@ from torch.utils.data import DataLoader
 from pprint import pprint
 from protrack import ProTrack
 from config import ConfigSeq
-from pipeline import PipeLine
+from pipeline import Pipeline, Training, FineTuning
 from fusion.execute import TrainExecution, FineTuneExecution, TestExecution
 from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101
 from fusion.utils.util import loader, ifExistLoad, Print, trainOf, fineTuneOf
 from fusion.arch.encoder import Encoder, MobileNet_V2, EfficientNet_B0
 from fusion.arch.projector import TrainProjector, TestProjector
-from fusion.arch.model_builder import TrainModel, Fine_TuneModel, TestModel
+from fusion.arch.model_builder import TrainModel, Fine_TuneModel, TestModel, ModelBuilder
 from fusion.learning.optimizer import Optim, Adam, AdamW, AdaBelief, SGD
 from fusion.learning.criterion import Criterion, BCEwithLogistLoss, CrossEntropyLoss, KLDiv, NTXent, BarlowTwins
 from fusion.learning.scheduler import Scheduler
@@ -18,7 +18,9 @@ from fusion.learning.scheduler import Scheduler
 #######== Configuration ==########
 torch.backends.cudnn.benchmark = True
 cfg = ConfigSeq()
-pipe = PipeLine()
+pipe = Pipeline(cfg.exec)
+pipe.register('train', Training)
+pipe.register('fine-tune', FineTuning)
 
 ######== Setting up Commands ==######
 dataset = Dataset()
@@ -43,6 +45,8 @@ optimizer.register("adamw", AdamW)
 optimizer.register("sgd", SGD)
 optimizer.register("adabelief", AdaBelief)
 
+
+
 ######== Dataset Setup Start ==######
 Print("###### Data downloading and verification Init ######")
 
@@ -52,7 +56,7 @@ test_dataloader = TestLoader(dataset.execute(cfg.data, 'test'), cfg.batch).execu
 
 ######== Dataset Setup End ==######
 
-cfg.set('data', 'dataset_size', len(train_dataloader.dataset))
+cfg.set('data', 'dataset_size', len(train_dataloader.data.dataset))
 
 ######== ProAug Init Start==######
 Print("###### ProAug Augs Init ######")
@@ -87,20 +91,20 @@ pt.save()
 ######== Model Start ==######
 Print("###### Model Building and Loading ######")
 
-modelBuilder = ModelBuilder(encoder = encoder, model = cfg.model, pt = pt)
+modelBuilder = ModelBuilder(encoder = encoder, model = cfg.model, pt = pt, hlayer = cfg.hlayer)
 
 modelBuilder.register("trainModel", TrainModel)
 modelBuilder.register("fine-tuneModel", Fine_TuneModel)
-modelBuilder.register("testLoader", TestLoader)
+modelBuilder.register("testModel", TestModel)
 
-trainModel = modelBuilder.execute(TrainProjector(cfg.hlayer), "train")
-fine_tuneModel = modelBuilder.execute(TrainProjector(cfg.hlayer), "fine-tune")
-testModel = modelBuilder.execute(TestProjector(cfg.hlayer), "test")
+trainModel = modelBuilder.execute("trainModel",TrainProjector, "train")
+fine_tuneModel = modelBuilder.execute("fine-tuneModel",TrainProjector, "fine-tune")
+testModel = modelBuilder.execute("testModel",TestProjector, "test")
 
-if cfg.utils.cuda:
-    trainModel = trainModel.cuda()
-    valModel = valModel.cuda()
-    testModel = testModel.cuda()
+# if cfg.utils.cuda:
+#     trainModel = trainModel.model.cuda()
+#     fine_tuneModel = fine_tuneModel.model.cuda()
+#     testModel = testModel.model.cuda()
 
 ######== Model End ==######
 pipe.addLoaders(train_dataloader, val_dataloader, test_dataloader)
@@ -113,6 +117,9 @@ pipe.addProtrack(pt)
 ######== Executioner Start ==######
 Print("###### Execution Initiated ######")
 
+pipe.execute(cfg.exec)
+
+
 # widgets = {
 #     'Augs': Augs,
 #     'protrack': pt,
@@ -120,27 +127,23 @@ Print("###### Execution Initiated ######")
 #     'criterion': criterion,
 #     'scheduler': Scheduler('yo')
 # }
-pipe = PipeLine(cfg.exec)
-pipe.start_execution()
 
 
-
-
-pipe.add(
-    Train(model=trainModel,
-          dataloader=train_dataloader,
-          data=cfg.data,
-          **widgets))
-pipe.add(
-    FineTune(model=valModel,
-             projector=TestProjector(cfg.hlayer),
-             dataloader=val_dataloader,
-             data=cfg.data,
-             **widgets))
-pipe.add(
-    Test(model=testModel, dataloader=test_dataloader, data=cfg.data,
-         **widgets))
-pipe.set_on_start()
+# pipe.add(
+#     Train(model=trainModel,
+#           dataloader=train_dataloader,
+#           data=cfg.data,
+#           **widgets))
+# pipe.add(
+#     FineTune(model=valModel,
+#              projector=TestProjector(cfg.hlayer),
+#              dataloader=val_dataloader,
+#              data=cfg.data,
+#              **widgets))
+# pipe.add(
+#     Test(model=testModel, dataloader=test_dataloader, data=cfg.data,
+#          **widgets))
+# pipe.set_on_start()
 
 # executioner = Executioner(
 #     model = model,

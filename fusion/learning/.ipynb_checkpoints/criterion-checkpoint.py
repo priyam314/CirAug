@@ -7,30 +7,57 @@ from fusion.utils.util import get_batch_size
 
 cfg = ConfigSeq()
 
-class Constants:
-    temp = Criterion().t
-    lambda_coeff = Criterion().lambda_coeff
-    batch_size = get_batch_size(cfg)
-    
+class Command(nn.Module):
+    @abstractmethod
+    def execute(self):
+        pass
+
 class Criterion:
-    def __init__(self, criteria: Criteria):
+    """Criterion Invoker class
+    this class invokes the criterion or loss function 
+    
+    ........
+    
+    Attributes:
+    ----------
+    lambda_coeff: str
+        value of lambda coefficient for barlow twins
+    
+    batch_size: int
+        value of size of batch 
+    
+    t: int
+        temperature value for NTXent loss
+    
+    commands: dict
+        dictionary to hold the key value pairs of all commands
         
-        self.config = config
+    Methods:
+    -------
+    register: None
+        register the command with the command name
+    
+    execute: float
+        returns the value of loss function
+    """
+    def __init__(self, criteria: Criteria):
         self.lambda_coeff = criteria.lamda
         self.batch_size = 0
         self.t = criteria.temp
         self.commands = {}
     
-    def register(self, command_name: str, command: Command):
+    def register(self, command_name: str, command: Command)-> None:
         self.commands[command_name] = command
     
-    def execute(self, command_name: str, z1, z2):
+    def execute(self, command_name: str, z1, z2)-> float:
         return self.commands[command_name].execute(z1, z2)
+    
+class Constants:
+    temp = Criterion(cfg.criteria).t
+    lambda_coeff = Criterion(cfg.criteria).lambda_coeff
+    batch_size = get_batch_size(cfg)
 
-class Command(nn.Module):
-    @abstractmethod
-    def execute(self):
-        pass
+#########== Command Interface ==#########
 
 class BCEwithLogistLoss(Command):
     def execute(self, z1, z2): return nn.BCEWithLogitsLoss()(z1, z2)
@@ -47,7 +74,9 @@ class KLDiv(Command):
         self.lg_sft = nn.functional.log_softmax(z1.float())
         self.sft = nn.functional.softmax(nn.functional.one_hot(z2, num_classes=lg_sft.shape[1]).float())
     
-    def execute(self, z1, z2): return nn.functional.kl_div(lg_sft, sft, reduction='batchmean')
+    def execute(self, z1, z2): 
+        self.do(z1, z2)
+        return nn.functional.kl_div(lg_sft, sft, reduction='batchmean')
         
 class NTXent(Command):
     def __init__(self, temp = Constants.temp):

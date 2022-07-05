@@ -3,28 +3,6 @@ import torch
 from config import Batch, Data
 from abc import ABC, abstractmethod
 
-class Dataset:
-    """Applies transforms to desired dataet and downloads it
-    
-    .......
-    
-    Attributes:
-    ----------
-    name: str
-        name of the dataset
-    
-    params: dict
-        essential parameters for datasets
-    """
-    def __init__(self):
-        self.commands = {}
-    
-    def register(self, command_name: str, command: Command):
-        self.commands[command_name] = command
-    
-    def execute(self, command_name: Data, split: str):
-        return self.commands[command_name.name].execute(split)
-
 class Command(ABC):
     
     def __init__(self):
@@ -42,6 +20,29 @@ class Command(ABC):
     def execute(self):
         pass
 
+class Dataset:
+    """Applies transforms to desired dataet and downloads it
+    
+    .......
+    
+    Attributes:
+    ----------
+    name: str
+        name of the dataset
+    
+    params: dict
+        essential parameters for datasets
+    """
+    def __init__(self):
+        self.commands = {}
+    
+    def register(self, command_name: str, command: Command):
+        self.commands[command_name] = command()
+    
+    def execute(self, command_name: Data, split: str):
+        return self.commands[command_name.name].execute(split=split)
+
+
 class SVHN(Command):
     """transforms and downloads the SVHN dataset
         
@@ -56,6 +57,7 @@ class SVHN(Command):
         -------
         torchvision.dataset
     """
+    
     def execute(self, split: str): return datasets.SVHN(split = split, **self.params)
 
 class STL10(Command):
@@ -126,14 +128,20 @@ class DataLoader(torch.utils.data.DataLoader):
         self.batch_size = 0
         self.nw = 0
         self._name = "dataloader"
+        self._dataset = 0
 
     def execute(self):
         print(f"{self.__class__.__name__}: setting up training set\n")
-        return torch.utils.data.DataLoader(dataset=self.dataset,
+        self._dataset = torch.utils.data.DataLoader(dataset=self.dataset,
                                            batch_size=self.batch_size,
                                            shuffle=True,
                                            num_workers=self.nw,
                                            pin_memory=True)
+        return self
+    
+    @property
+    def data(self): return self._dataset
+
     @property
     def name(self): return self._name
 

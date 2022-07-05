@@ -20,15 +20,13 @@ class Executioner(ABC):
         self.total_loss = 0
         self.once = True
         self.corrects = 0
-        self.runable = [self.execute]
     
     @abstractmethod
     def execute(self):
         pass
     
     @property
-    def proTrack(self):
-        return self.pt
+    def proTrack(self): return self.pt
     
     def print_stats(self, typ="train", batch_idx=0, len_data=0, dataset_size=0):
         print ()
@@ -40,8 +38,10 @@ class Executioner(ABC):
         time_epoch_start = torch.cuda.Event(enable_timing=True)
         time_epoch_end = torch.cuda.Event(enable_timing=True)
         time_epoch_start.record()
-        for execute in self.runable:
-            execute(epoch)
+        # for execute in self.runable:
+        
+        self.execute(epoch)
+        
         torch.cuda.synchronize()
         time_epoch_end.record()
         print ("*********")
@@ -55,23 +55,28 @@ class Executioner(ABC):
     def run(self, config: Epoch):
         for epoch in range(config.start, config.end+1): 
             self.oneEpochRun(epoch)
+        
+    def compositeRun(self, execution, config: Epoch):
+        for epoch in range(config.start, config.end+1):
+            self.oneEpochRun(epoch)
+            execution.oneEpochRun(epoch)
     
-    def add_in_pipe(self, objec):
-        self.runable.append(objec.execute)
-        return self
+    # def add_in_pipe(self, objec):
+    #     self.runable.append(objec.execute)
+    #     return self
 
-class Train(Executioner):
+class TrainExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
                  dataloader: torch.utils.data.DataLoader, 
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
-                 scheduler: fuse.learning.scheduler.Scheduler,
+                 # scheduler: fuse.learning.scheduler.Scheduler,
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(Train, self).__init__()
+        super(TrainExecution, self).__init__()
         self.model = model
         self.dataloader = dataloader
         self.augs = Augs
@@ -110,11 +115,11 @@ class Train(Executioner):
 
         self.total_loss = 0
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "trainExecution"
 
-class FineTune(Executioner):
+class FineTuneExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
                  projector: fuse.arch.projector.TestProjector,
@@ -122,11 +127,11 @@ class FineTune(Executioner):
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
-                 scheduler: fuse.learning.scheduler.Scheduler,
+                 # scheduler: fuse.learning.scheduler.Scheduler,
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(FineTune, self).__init__()
+        super(FineTuneExecution, self).__init__()
         self.model = model
         self.projector = projector
         self.dataloader = dataloader
@@ -180,22 +185,22 @@ class FineTune(Executioner):
             self.once = False
         return model
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "fine-tuneExecution"
 
-class Test(Executioner):
+class TestExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
                  dataloader: torch.utils.data.DataLoader, 
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
-                 scheduler: fuse.learning.scheduler.Scheduler,
+                 # scheduler: fuse.learning.scheduler.Scheduler,
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(Test, self).__init__()
+        super(TestExecution, self).__init__()
         self.model = model
         self.dataloader = dataloader
         self.augs = Augs
@@ -232,6 +237,6 @@ class Test(Executioner):
         self.corrects = 0 
         self.loss = 0
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "testExecution"

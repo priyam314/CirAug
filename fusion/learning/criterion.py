@@ -7,11 +7,11 @@ from fusion.utils.util import get_batch_size
 
 cfg = ConfigSeq()
 
-class Constants:
-    temp = Criterion().t
-    lambda_coeff = Criterion().lambda_coeff
-    batch_size = get_batch_size(cfg)
-    
+class Command(nn.Module):
+    @abstractmethod
+    def execute(self):
+        pass
+
 class Criterion:
     """Criterion Invoker class
     this class invokes the criterion or loss function 
@@ -51,14 +51,13 @@ class Criterion:
     
     def execute(self, command_name: str, z1, z2)-> float:
         return self.commands[command_name].execute(z1, z2)
-
+    
+class Constants:
+    temp = Criterion(cfg.criteria).t
+    lambda_coeff = Criterion(cfg.criteria).lambda_coeff
+    batch_size = get_batch_size(cfg)
 
 #########== Command Interface ==#########
-
-class Command(nn.Module):
-    @abstractmethod
-    def execute(self):
-        pass
 
 class BCEwithLogistLoss(Command):
     def execute(self, z1, z2): return nn.BCEWithLogitsLoss()(z1, z2)

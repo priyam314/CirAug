@@ -3,16 +3,6 @@ from torchvision import models
 from config import Model
 from abc import ABC, abstractmethod
 
-class Encoder:
-    def __init__(self):
-        self.commands = {}
-    
-    def register(self, command_name:str, command: Command): 
-        self.commands[command_name] = command
-    
-    def execute(self, command_name: Model, projector: nn.Sequential):
-        return self.command[command_name.encoder].init(self.projector)
-
 class Command(ABC):
     def __init__(self):
         self.model = 0
@@ -21,6 +11,16 @@ class Command(ABC):
     def init(self, projector: nn.Sequential):
         pass
     
+class Encoder:
+    def __init__(self):
+        self.commands = {}
+    
+    def register(self, command_name:str, command: Command): 
+        self.commands[command_name] = command()
+    
+    def execute(self, command_name: Model, projector: nn.Sequential):
+        return self.commands[command_name.encoder].init(projector)
+
 class MobileNet_V2(Command):
         
     def init(self, projector: nn.Sequential)->nn.Module:

@@ -56,7 +56,7 @@ class Executioner(ABC):
         for epoch in range(config.start, config.end+1): 
             self.oneEpochRun(epoch)
         
-    def compositeRun(self, execution: Executioner, config: Epoch):
+    def compositeRun(self, execution, config: Epoch):
         for epoch in range(config.start, config.end+1):
             self.oneEpochRun(epoch)
             execution.oneEpochRun(epoch)
@@ -76,7 +76,7 @@ class TrainExecution(Executioner):
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(Train, self).__init__()
+        super(TrainExecution, self).__init__()
         self.model = model
         self.dataloader = dataloader
         self.augs = Augs
@@ -115,8 +115,8 @@ class TrainExecution(Executioner):
 
         self.total_loss = 0
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "trainExecution"
 
 class FineTuneExecution(Executioner):
@@ -127,11 +127,11 @@ class FineTuneExecution(Executioner):
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
-                 scheduler: fuse.learning.scheduler.Scheduler,
+                 # scheduler: fuse.learning.scheduler.Scheduler,
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(FineTune, self).__init__()
+        super(FineTuneExecution, self).__init__()
         self.model = model
         self.projector = projector
         self.dataloader = dataloader
@@ -185,8 +185,8 @@ class FineTuneExecution(Executioner):
             self.once = False
         return model
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "fine-tuneExecution"
 
 class TestExecution(Executioner):
@@ -196,11 +196,11 @@ class TestExecution(Executioner):
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
-                 scheduler: fuse.learning.scheduler.Scheduler,
+                 # scheduler: fuse.learning.scheduler.Scheduler,
                  protrack: ProTrack,
                  data: Data
     )->None:
-        super(Test, self).__init__()
+        super(TestExecution, self).__init__()
         self.model = model
         self.dataloader = dataloader
         self.augs = Augs
@@ -237,6 +237,6 @@ class TestExecution(Executioner):
         self.corrects = 0 
         self.loss = 0
     
-    @property
-    def name(self):
+    @staticmethod
+    def name():
         return "testExecution"
