@@ -1,6 +1,7 @@
 from typing import List
 import torch.nn as nn
 from config import ConfigSeq, Hlayer
+from abc import ABC, abstractmethod
 
 cfg = ConfigSeq()
 
@@ -18,33 +19,55 @@ def get_projector(hlayerList, dropoutList, projector, i_f)->nn.Sequential:
     elif len(hlayerList) == 1:
         projector.add_module("Linear_0", nn.Linear(hlayerList[0], hlayerList[0]))
     return projector
+
+class AbstractCommand(nn.Module):
+    pass
+
+class Command(AbstractCommand):
+    @abstractmethod
+    def execute(self):
+        pass
+
+class Projector:
+    def __init__(self):
+        self.commands = {}
     
-class TrainProjector(nn.Module):
+    def register(self, command_name: str, command: Command):
+        self.commands[command_name] = command(cfg.hlayer)
+    
+    def execute(self, command_name: str):
+        return self.commands[command_name].execute()
+    
+class TrainProjector(Command):
     def __init__(self, layerList: Hlayer):
         super(TrainProjector, self).__init__()
-        self.hlayerList = layerList.train
-        self.dropoutList = layerList.dropout
-        self.projector = nn.Sequential()
+        self.layerlist = layerList
+        self._projector = 0
     
-    def forward(self, i_f = 12):
-        return get_projector(self.hlayerList, self.dropoutList, self.projector, i_f)
- 
-    def __call__(self, i_f = 12):
-        return self.forward(i_f)
+    def execute(self, i_f = 12):
+        self._projector = get_projector(self.layerlist.train, self.layerlist.dropout, nn.Sequential(), i_f)
+        return self
+    
+    @property
+    def projector(self): return self._projector
+    
+    @property
+    def name(self): return "trainProjector"
         
 class TestProjector(nn.Module):
     
     def __init__(self, layerList: Hlayer):
         super(TestProjector, self).__init__()
-        self.hlayerList = layerList.test
-        self.dropoutList = layerList.dropout
-        self.projector = nn.Sequential()
-        
-    def forward(self, i_f = 12):
-        return get_projector(self.hlayerList, self.dropoutList, self.projector, i_f)
- 
-    def __call__(self, i_f = 12):
-        return self.forward(i_f)
+        self.layerlist = layerList
     
+    def execute(self, i_f = 12):
+        self._projector = get_projector(self.layerlist.test, self.layerlist.dropout, nn.Sequential(), i_f)
+        return self
+
+    @property
+    def projector(self): return self._projector
+    
+    @property
+    def name(self): return "testProjector"
         
     

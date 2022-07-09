@@ -47,7 +47,7 @@ class Criterion:
         self.commands = {}
     
     def register(self, command_name: str, command: Command)-> None:
-        self.commands[command_name] = command
+        self.commands[command_name] = command()
     
     def execute(self, command_name: str, z1, z2)-> float:
         return self.commands[command_name].execute(z1, z2)

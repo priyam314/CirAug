@@ -18,7 +18,7 @@ class Optim:
         self.commands[command_name] = command()
     
     def execute(self, command_name: str, model: nn.Module, config: Optimizer):
-        return self.commands[command_mame].execute(model, config)
+        return self.commands[command_name].execute(model, config)
 
 class Adam(Command):
     def execute(self, model: nn.Module, config: Optimizer):

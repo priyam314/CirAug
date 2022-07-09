@@ -1,14 +1,16 @@
-from torchvision import transforms
-from protrack import ProTrack
-from config import ConfigSeq, Data, Epoch
-from abc import ABC, abstractmethod
-
 import fusion as fuse
 import ProAug
 import torch
 import time
+from log import setter
+from torchvision import transforms
+from protrack import ProTrack
+from config import ConfigSeq, Data, Epoch
+from abc import ABC, abstractmethod
+from fusion.utils.data import DataLoader
 
 cfg = ConfigSeq()
+logger = setter(__name__)
 
 class Executioner(ABC):
     def __init__(self):
@@ -21,6 +23,9 @@ class Executioner(ABC):
         self.once = True
         self.corrects = 0
     
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+    
     @abstractmethod
     def execute(self):
         pass
@@ -30,7 +35,7 @@ class Executioner(ABC):
     
     def print_stats(self, typ="train", batch_idx=0, len_data=0, dataset_size=0):
         print ()
-        print('{} Epoch: {} [{}/{} ({:.2f}%)]\tLoss: {:.6f}'.format(
+        logger.info('{} Epoch: {} [{}/{} ({:.2f}%)]\tLoss: {:.6f}'.format(
             typ, self.epoch, batch_idx * len_data, dataset_size,
             (100 * batch_idx * len_data) / dataset_size, self.loss.data))
     
@@ -68,7 +73,7 @@ class Executioner(ABC):
 class TrainExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
-                 dataloader: torch.utils.data.DataLoader, 
+                 dataloader: DataLoader, 
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
@@ -78,11 +83,11 @@ class TrainExecution(Executioner):
     )->None:
         super(TrainExecution, self).__init__()
         self.model = model
-        self.dataloader = dataloader
+        self.dataloader = dataloader.data
         self.augs = Augs
-        self.optimizer = optim.execute(self.model, cfg.optimizer),
+        self.optimizer = optim.execute(cfg.optimizer.name, self.model, cfg.optimizer),
         self.criterion = criterion,
-        self.scheduler = scheduler,
+        # self.scheduler = scheduler,
         self.pt = protrack,
         self.data_percent = data.train_percent
     
@@ -97,7 +102,7 @@ class TrainExecution(Executioner):
             x_aug, x = self.augs.apply_random(data, self.epoch, update = cfg.proaug.update), data
             self.optimizer[0].zero_grad()
             projector_p_aug, projector_p_orig = self.model(x_aug), self.model(x)
-            self.loss = self.criterion[0].execute(projector_p_aug, projector_p_orig)
+            self.loss = self.criterion[0].execute(cfg.criteria.name, projector_p_aug, projector_p_orig)
             self.total_loss += self.loss.data
             self.loss.backward()
             self.optimizer[0].step()
@@ -123,7 +128,7 @@ class FineTuneExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
                  projector: fuse.arch.projector.TestProjector,
-                 dataloader: torch.utils.data.DataLoader, 
+                 dataloader: DataLoader, 
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
@@ -134,11 +139,11 @@ class FineTuneExecution(Executioner):
         super(FineTuneExecution, self).__init__()
         self.model = model
         self.projector = projector
-        self.dataloader = dataloader
+        self.dataloader = dataloader.data
         self.augs = Augs
-        self.optimizer = optim.execute(self.model, cfg.optimizer),
+        self.optimizer = optim.execute(cfg.optimizer.name, self.model, cfg.optimizer),
         self.criterion = criterion,
-        self.scheduler = scheduler,
+        # self.scheduler = scheduler,
         self.pt = protrack,
         self.data_percent = data.val_percent
     
@@ -157,7 +162,7 @@ class FineTuneExecution(Executioner):
             self.optimizer[0].zero_grad()
             outputs = self.model(data)
             _, preds = torch.max(outputs, 1)
-            self.loss = self.criterion[0].execute(outputs, labels)
+            self.loss = self.criterion[0].execute(cfg.criteria.name, outputs, labels)
             self.loss.backward()
             self.optimizer[0].step()
             self.total_loss += self.loss.data
@@ -181,7 +186,7 @@ class FineTuneExecution(Executioner):
         if self.once:
             for f in model.features.parameters():
                 f.required_grad = False
-            model.classifier = self.projector(model.classifier[0].in_features)
+            model.classifier = self.projector.projector(model.classifier[0].in_features)
             self.once = False
         return model
     
@@ -192,7 +197,7 @@ class FineTuneExecution(Executioner):
 class TestExecution(Executioner):
     def __init__(self,
                  model: torch.nn.Module, 
-                 dataloader: torch.utils.data.DataLoader, 
+                 dataloader: DataLoader, 
                  Augs: ProAug.augSeq.AugSeq,
                  optim: fuse.learning.optimizer.Optim,
                  criterion: fuse.learning.criterion.Criterion,
@@ -202,11 +207,11 @@ class TestExecution(Executioner):
     )->None:
         super(TestExecution, self).__init__()
         self.model = model
-        self.dataloader = dataloader
+        self.dataloader = dataloader.data
         self.augs = Augs
-        self.optimizer = optim.execute(self.model, cfg.optimizer),
+        self.optimizer = optim.execute(cfg.optimizer.name, self.model, cfg.optimizer),
         self.criterion = criterion,
-        self.scheduler = scheduler,
+        # self.scheduler = scheduler,
         self.pt = protrack,
         self.data_percent = data.test_percent
     
@@ -223,7 +228,7 @@ class TestExecution(Executioner):
             self.optimizer[0].zero_grad()
             outputs = self.model(data)
             _, preds = torch.max(outputs, 1)
-            self.loss = self.criterion[0].execute(outputs, labels)
+            self.loss = self.criterion[0].execute(cfg.criteria.name, outputs, labels)
             self.total_loss += self.loss.data
             self.corrects += torch.sum(preds==labels.data)
             if batch_idx % cfg.batch.log_interval == 0:

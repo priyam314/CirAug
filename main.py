@@ -1,26 +1,35 @@
 import torch
 from augs import Augs
+from log import setter
 from torch.utils.data import DataLoader
 from pprint import pprint
 from protrack import ProTrack
 from config import ConfigSeq
 from pipeline import Pipeline, Training, FineTuning
 from fusion.execute import TrainExecution, FineTuneExecution, TestExecution
-from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101
+from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101, data_summary
 from fusion.utils.util import loader, ifExistLoad, Print, trainOf, fineTuneOf
 from fusion.arch.encoder import Encoder, MobileNet_V2, EfficientNet_B0
-from fusion.arch.projector import TrainProjector, TestProjector
+from fusion.arch.projector import TrainProjector, TestProjector, Projector
 from fusion.arch.model_builder import TrainModel, Fine_TuneModel, TestModel, ModelBuilder
 from fusion.learning.optimizer import Optim, Adam, AdamW, AdaBelief, SGD
 from fusion.learning.criterion import Criterion, BCEwithLogistLoss, CrossEntropyLoss, KLDiv, NTXent, BarlowTwins
 from fusion.learning.scheduler import Scheduler
 
+logger = setter(__name__)
+logger.info("Downloaded all the required Modules")
 #######== Configuration ==########
+logger.info("Configuration Begins")
+
 torch.backends.cudnn.benchmark = True
 cfg = ConfigSeq()
 pipe = Pipeline(cfg.exec)
+
 pipe.register('train', Training)
 pipe.register('fine-tune', FineTuning)
+
+logger.info("Registered Strategies of Execution")
+logger.debug(f"Execution shall work for {cfg.exec.typ} Strategy")
 
 ######== Setting up Commands ==######
 dataset = Dataset()
@@ -28,9 +37,13 @@ dataset.register("svhn", SVHN)
 dataset.register("stl10", STL10)
 dataset.register("food101", FOOD101)
 
+logger.info("Registered Datasets")
+
 encoder = Encoder()
 encoder.register("mobilenet-v2", MobileNet_V2)
 encoder.register("efficientnet-b0", EfficientNet_B0)
+
+logger.info("Registered Encoders")
 
 criterion = Criterion(cfg.criteria)
 criterion.register("bce", BCEwithLogistLoss)
@@ -39,13 +52,21 @@ criterion.register("kldiv", KLDiv)
 criterion.register("ntxent", NTXent)
 criterion.register("barlow", BarlowTwins)
 
+logger.info("Registered Criterions")
+
 optimizer = Optim()
 optimizer.register("adam", Adam)
 optimizer.register("adamw", AdamW)
 optimizer.register("sgd", SGD)
 optimizer.register("adabelief", AdaBelief)
 
+logger.info("Registered Optimizers")
 
+projector = Projector()
+projector.register("trainProjector", TrainProjector)
+projector.register("testProjector", TestProjector) 
+
+logger.info("Registered Projectors")
 
 ######== Dataset Setup Start ==######
 Print("###### Data downloading and verification Init ######")
@@ -54,6 +75,7 @@ train_dataloader = TrainLoader(dataset.execute(cfg.data, 'train'), cfg.batch).ex
 val_dataloader = ValLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
 test_dataloader = TestLoader(dataset.execute(cfg.data, 'test'), cfg.batch).execute()
 
+data_summary(train_dataloader, val_dataloader, test_dataloader)
 ######== Dataset Setup End ==######
 
 cfg.set('data', 'dataset_size', len(train_dataloader.data.dataset))
@@ -92,14 +114,14 @@ pt.save()
 Print("###### Model Building and Loading ######")
 
 modelBuilder = ModelBuilder(encoder = encoder, model = cfg.model, pt = pt, hlayer = cfg.hlayer)
-
 modelBuilder.register("trainModel", TrainModel)
 modelBuilder.register("fine-tuneModel", Fine_TuneModel)
 modelBuilder.register("testModel", TestModel)
 
-trainModel = modelBuilder.execute("trainModel",TrainProjector, "train")
-fine_tuneModel = modelBuilder.execute("fine-tuneModel",TrainProjector, "fine-tune")
-testModel = modelBuilder.execute("testModel",TestProjector, "test")
+
+trainModel = modelBuilder.execute("trainModel", projector.execute("trainProjector"), "train")
+fine_tuneModel = modelBuilder.execute("fine-tuneModel", projector.execute("trainProjector"), "fine-tune")
+testModel = modelBuilder.execute("testModel",projector.execute("testProjector"), "test")
 
 # if cfg.utils.cuda:
 #     trainModel = trainModel.model.cuda()
@@ -109,6 +131,7 @@ testModel = modelBuilder.execute("testModel",TestProjector, "test")
 ######== Model End ==######
 pipe.addLoaders(train_dataloader, val_dataloader, test_dataloader)
 pipe.addModels(trainModel, fine_tuneModel, testModel)
+pipe.addProjectors(projector)
 pipe.addCriterion(criterion)
 pipe.addOptimizer(optimizer)
 pipe.addExecutions(TrainExecution, FineTuneExecution, TestExecution)

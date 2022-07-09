@@ -45,21 +45,24 @@ class ModelBuilder:
     def execute(self, command_name: str, projector: nn.Module, word: str):
         return self.commands[command_name].execute(projector, word)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
+
 class TrainModel(Command):
     def execute(self, projector, word):
-        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
+        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self
 
 class Fine_TuneModel(Command):
     def execute(self, projector, word):
-        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
+        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self
 
 class TestModel(Command):
     def execute(self, projector, word):
-        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector(self.hlayer)), self.pt, self._model, word)
+        self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self
     

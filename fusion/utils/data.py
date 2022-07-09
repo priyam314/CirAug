@@ -139,6 +139,9 @@ class DataLoader(torch.utils.data.DataLoader):
                                            pin_memory=True)
         return self
     
+    def __repr__(self):
+        return f"{type(self).__name__}"
+    
     @property
     def data(self): return self._dataset
 

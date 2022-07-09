@@ -55,9 +55,9 @@ config = {
         'log_interval': 40
     },
     'epoch':{
-        'total': 4,
+        'total': 10,
         'start': 1,
-        'end': 4,
+        'end': 12,
         'warmup': 4
     },
     'optimizer':{
@@ -74,7 +74,7 @@ config = {
     },
     'proaug':{
         'lamda': 3,
-        'update': False
+        'update': True
     },
     'criteria':{
         'name': 'cel',
@@ -86,16 +86,16 @@ config = {
         'jsonm': 'protrack.json'
     },
     'hlayer':{
-        'train': [512, 256],
-        'test': [512,10],
+        'train': [720, 512, 256],
+        'test': [720, 128 ,10],
         'dropout': [0.9, 0.5]
     },
     'exec':{
-        'typ': 'train'
+        'typ': 'fine-tune'
     },
     'utils':{
         'cuda': torch.cuda.is_available(),
-        'index': 0,
+        'index': 1,
         'desc': 'new',
         'K': 3
     },
