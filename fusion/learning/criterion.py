@@ -1,9 +1,11 @@
 import torch.nn as nn
 import torch
-from config import ConfigSeq
+from shared.config import ConfigSeq, Criteria
 from abc import abstractmethod
-from config import Criteria
 from fusion.utils.util import get_batch_size
+from shared.log import setter
+
+logger = setter(__name__)
 
 cfg = ConfigSeq()
 
@@ -11,6 +13,9 @@ class Command(nn.Module):
     @abstractmethod
     def execute(self):
         pass
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}"
 
 class Criterion:
     """Criterion Invoker class
@@ -47,10 +52,15 @@ class Criterion:
         self.commands = {}
     
     def register(self, command_name: str, command: Command)-> None:
+        logger.info("Inside Criterion register method")
+        logger.debug(f"Registering {command_name}: {command()}")
         self.commands[command_name] = command()
     
-    def execute(self, command_name: str, z1, z2)-> float:
-        return self.commands[command_name].execute(z1, z2)
+    def execute(self, command_name: Criteria, z1, z2)-> float:
+        # logger.info("Inside Criterion execute method")
+        # if not issubclass(type(command_name), Criteria): logger.critical(f"command_name should be an instance of {Criteria} got {type(command_name)}")
+        # logger.debug(f"Executing {command_name.name} with z1: {type(z1)}, z2: {type(z2)}")
+        return self.commands[command_name.name].execute(z1, z2)
     
 class Constants:
     temp = Criterion(cfg.criteria).t

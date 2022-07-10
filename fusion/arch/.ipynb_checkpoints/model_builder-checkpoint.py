@@ -1,10 +1,13 @@
-from config import Model, ConfigSeq, Hlayer
+from shared.config import Model, ConfigSeq, Hlayer
 from fusion.arch.encoder import Encoder
 from torch import nn
 from protrack import ProTrack
 from abc import ABC, abstractmethod
 from fusion.utils.util import ifExistLoad
 from fusion.utils.util import trainOf, fineTuneOf
+from shared.log import setter
+
+logger = setter(__name__)
 
 cfg = ConfigSeq()
 
@@ -37,12 +40,16 @@ class ModelBuilder:
         self.commands = {}
     
     def register(self, command_name: str, command: Command):
+        logger.info("Inside ModelBuilder register method")
+        logger.debug(f"Registering {command_name}: {type(command).__name__}")
         self.commands[command_name] = command(encoder = self.encoder, 
 											  model = self.model, 
 											  pt = self.pt, 
 											  hlayer = cfg.hlayer)
     
     def execute(self, command_name: str, projector: nn.Module, word: str):
+        logger.debug("Inside ModelBuilder execute method")
+        logger.debug(f"Executing {command_name}")
         return self.commands[command_name].execute(projector, word)
 
     def __repr__(self):
@@ -50,18 +57,21 @@ class ModelBuilder:
 
 class TrainModel(Command):
     def execute(self, projector, word):
+        logger.info("Inside TrainModel execute method")
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self
 
 class Fine_TuneModel(Command):
     def execute(self, projector, word):
+        logger.info("Inside Fine_TuneModel execute method")
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self
 
 class TestModel(Command):
     def execute(self, projector, word):
+        logger.info("Inside TestModel execute method")
         self.skeleton = ifExistLoad(self.encoder.execute(self._model, projector), self.pt, self._model, word)
         self._name = word+"Model"
         return self

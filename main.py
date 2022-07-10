@@ -1,10 +1,10 @@
 import torch
 from augs import Augs
-from log import setter
 from torch.utils.data import DataLoader
 from pprint import pprint
 from protrack import ProTrack
-from config import ConfigSeq
+from shared.log import setter
+from shared.config import ConfigSeq
 from pipeline import Pipeline, Training, FineTuning
 from fusion.execute import TrainExecution, FineTuneExecution, TestExecution
 from fusion.utils.data import TrainLoader, ValLoader, TestLoader, Dataset, STL10, SVHN, FOOD101, data_summary
@@ -75,7 +75,7 @@ train_dataloader = TrainLoader(dataset.execute(cfg.data, 'train'), cfg.batch).ex
 val_dataloader = ValLoader(dataset.execute(cfg.data, 'train'), cfg.batch).execute()
 test_dataloader = TestLoader(dataset.execute(cfg.data, 'test'), cfg.batch).execute()
 
-data_summary(train_dataloader, val_dataloader, test_dataloader)
+# data_summary(train_dataloader, val_dataloader, test_dataloader)
 ######== Dataset Setup End ==######
 
 cfg.set('data', 'dataset_size', len(train_dataloader.data.dataset))

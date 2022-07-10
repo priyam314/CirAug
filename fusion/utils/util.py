@@ -1,6 +1,6 @@
 import torch
 from termcolor import colored
-from config import Config, Model
+from shared.config import Config, Model
 
 def get_batch_size(config: Config):
     if config.exec.typ == "train": return config.batch.train_size

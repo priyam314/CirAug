@@ -1,5 +1,5 @@
-from log import setter
-from config import Exec, ConfigSeq
+from shared.log import setter
+from shared.config import Exec, ConfigSeq
 from typing import List
 from fusion.utils.data import TrainLoader, ValLoader, TestLoader, DataLoader
 from abc import ABC, abstractmethod

@@ -5,7 +5,7 @@ import torch.nn as nn
 from pathlib import Path
 import copy
 import os
-from config import ConfigSeq
+from shared.config import ConfigSeq
 import torch
 
 cfg = ConfigSeq()
